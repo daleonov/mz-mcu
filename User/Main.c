@@ -4,100 +4,115 @@
 #include "Time.h"  
 #include "PacketHandler.h"
 
-/* Буфер последовательного порта */
+/* Р‘СѓС„РµСЂ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕРіРѕ РїРѕСЂС‚Р° */
 CB_Structure cbRxBuffer; 
+CB_Structure cbTxBuffer; 
 
-/* Флаг пришедшего пакета */
+/* Р¤Р»Р°Рі РїСЂРёС€РµРґС€РµРіРѕ РїР°РєРµС‚Р° */
 _BOOL bNewPacket = 0;
 			 
 void USART1_IRQHandler(void){
 	/*!
-	\brief Обработчик прерываний от последовательного порта.
+	\brief РћР±СЂР°Р±РѕС‚С‡РёРє РїСЂРµСЂС‹РІР°РЅРёР№ РѕС‚ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕРіРѕ РїРѕСЂС‚Р°.
 	*/		 
 	static char cChr;						
 
 	/*
-	Если в Rx появились данные, записываем их побайтно в буфер.
-	Когда приходит символ конца пакета (в данном случае CR), 
-	устанавливаем флаг конца пакета. 
+	Р•СЃР»Рё РІ Rx РїРѕСЏРІРёР»РёСЃСЊ РґР°РЅРЅС‹Рµ, Р·Р°РїРёСЃС‹РІР°РµРј РёС… РїРѕР±Р°Р№С‚РЅРѕ РІ Р±СѓС„РµСЂ.
+	РљРѕРіРґР° РїСЂРёС…РѕРґРёС‚ СЃРёРјРІРѕР» РєРѕРЅС†Р° РїР°РєРµС‚Р° (РІ РґР°РЅРЅРѕРј СЃР»СѓС‡Р°Рµ CR), 
+	СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј С„Р»Р°Рі РєРѕРЅС†Р° РїР°РєРµС‚Р°. 
 	*/
 	if((USART_GetITStatus(USART1, USART_IT_RXNE))){
-		/* Считываем байт */
+		/* РЎС‡РёС‚С‹РІР°РµРј Р±Р°Р№С‚ */
 		cChr= USART_ReceiveData(USART1);
-		/* Записываем в буфер */
+		/* Р—Р°РїРёСЃС‹РІР°РµРј РІ Р±СѓС„РµСЂ */
 		CB_Push(&cbRxBuffer, cChr);
-		/* Если CR - выставляем соответствующий флаг */
-		if((cChr=='\r')){
+		/* Р•СЃР»Рё CR - РІС‹СЃС‚Р°РІР»СЏРµРј СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёР№ С„Р»Р°Рі */
+		if(cChr=='\r'){
 			bNewPacket = 1;	
+			GPIO_WriteBit(GPIOC, GPIO_Pin_9, Bit_SET);
 		}
 		USART_ClearITPendingBit(USART1, USART_IT_RXNE);		 
 	}	  
 	 	 
 }
 
-int DEV_HandlePacket(void);
+void InitGPIO(void);   
+void DEV_SystemRCCInit(void);
 
 int main(void){  	
 
-	/* Инициальзация системного таймера */
+	/* РРЅРёС†РёР°Р»СЊР·Р°С†РёСЏ СЃРёСЃС‚РµРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° */
 	DEV_SystemRCCInit();
+	InitGPIO();
+	
+	GPIO_SetBits(GPIOC, GPIO_Pin_8);
 
-	/* Инициализация приёмного буфера */
+	/* РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїСЂРёС‘РјРЅРѕРіРѕ Р±СѓС„РµСЂР° */
 	CB_Wipe(&cbRxBuffer);
 
-	/* Инициализация последовательного порта (RS485) */
+	/* РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕРіРѕ РїРѕСЂС‚Р° (RS485) */
 	PERIRH_DefaultUSART1Config();
+	
+	PERIPH_Printf("Initialization completed.\n");		
 
 	while(1){
 		if(bNewPacket){	  			 
-			DEV_HandlePacket(); /* Обработка пакета */ 
-			bNewPacket = 0;	 /* Сброс флага */
+			bNewPacket = 0;	 /* РЎР±СЂРѕСЃ С„Р»Р°РіР° */
 		}	   
-		TIME_Delay_ms(10);
+		PERIPH_Printf("x\n");	
+		TIME_Delay_ms(1000);
 	}
 
 }
+void InitGPIO(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+  
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8|GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOC, &GPIO_InitStructure); 	   
+
+   return;		   
+} 
 
 
-int DEV_HandlePacket(void){
-	/*!
-	\brief Обработчик принятых пакетов.
-	\details Вызывается после приёма каждого пакета.
-	*/
-	char sReceivedPacket[CB_SIZE];
-	int nPacketId;
-
-	/* Считываем данные из буфера */
-	CB_ReadStr(sReceivedPacket, &cbRxBuffer);
-	CB_Wipe(&cbRxBuffer); 	
+void DEV_SystemRCCInit(){
+	ErrorStatus hseStartUpStatus;
+	RCC_DeInit();
+	RCC_HSEConfig(RCC_HSE_ON); //HSE is 8MHz
+ 
+	//Waiting for HSE to start...
+	hseStartUpStatus = RCC_WaitForHSEStartUp();
 	
-	/* Анализ пакета */
-	nPacketId = PACKET_GetId(sReceivedPacket);
-	
-	/* Действия в зависимости от входного пакета */
-	switch(nPacketId){
+	if (hseStartUpStatus == SUCCESS){ 
+		//Enabling flash buffer
+		FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);
+		FLASH_SetLatency(FLASH_Latency_2);	
 
-	/* Обработка опознанных пакетов */
-	case 1: /* Пакет 1 */
-		/* Действие 1 */
-		break;
-	case 2:	/* Пакет 2 */
-		/* Действие 1 */
-		break;
-		/* ... */
+		// HCLK = SYSCLK
+		RCC_HCLKConfig(RCC_SYSCLK_Div1); 	
+		// APB2
+		RCC_PCLK2Config(RCC_HCLK_Div4);	 	
+		// APB1
+		RCC_PCLK1Config(RCC_HCLK_Div4);			
+		 	
+		// PLLCLK = 8MHz * 8 = 64 MHz
+		RCC_PLLConfig(RCC_PLLSource_PREDIV1, RCC_PLLMul_4);	 	
+		//Enabling the phase-locked loop
+		RCC_PLLCmd(ENABLE);
+		while (RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET);
 		
-	/* Обработка ошибок */	
-	case RS485_CHECKSUM_ERROR: /* Ошибка контрольной суммы */ 
-		/* ... */
-		break;
-	case RS485_UNKNOWN_COMMAND_ERROR: /* Неизвестный пакет */ 
-		/* ... */
-		break;
-	/* ... */
-
-	}	
-
-	return 0;
+		//Setting PLL output as system clock
+		RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK); 	
+		
+	//	No macros for this one...
+	//	0x00: HSI used as system clock 
+	//	0x04: HSE used as system clock 
+	//	0x08: PLL used as system clock
+		while (RCC_GetSYSCLKSource() != 0x08);
+	} 		
+	RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
 }
-
-
