@@ -6,6 +6,7 @@
 */
 
 #include "MCU_MarkZeroBsp.h"
+#include "MCU_Serial.h"
 
 void MZ_InitLedGpio(void){
 	/*!
@@ -50,4 +51,10 @@ void MZ_SetLedState(MZ_TLedId mLedId, MZ_TLedState mLedState){
 	}
 	mLedBitState = (mLedState == MZ_LedOn) ? Bit_SET : Bit_RESET;
 	GPIO_WriteBit(mLedGpio, nLedPin, mLedBitState);
+}
+
+
+void MZ_InitBluetoothSerial(void){
+	
+	SERIAL_DefaultUSART1Config();   
 }

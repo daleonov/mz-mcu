@@ -37,5 +37,6 @@ typedef enum __MZ_TLedState{
 
 void MZ_InitLedGpio(void);
 void MZ_SetLedState(MZ_TLedId mLedId, MZ_TLedState mLedState);
+void MZ_InitBluetoothSerial(void);
 
 #endif // __MCU_MARKZEROBSP_H
