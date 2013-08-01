@@ -1,41 +1,5 @@
-#include "stm32f10x.h"	  
-#include "periph.h"
-#include "FIFO.h"
+#include "stm32f10x.h"	 
 #include "Time.h"  
-#include "PacketHandler.h"
-
-/* Буфер последовательного порта */
-CB_Structure cbRxBuffer; 
-CB_Structure cbTxBuffer; 
-
-/* Флаг пришедшего пакета */
-_BOOL bNewPacket = 0;
-			 
-void USART1_IRQHandler(void){
-	/*!
-	\brief Обработчик прерываний от последовательного порта.
-	*/		 
-	static char cChr;						
-
-	/*
-	Если в Rx появились данные, записываем их побайтно в буфер.
-	Когда приходит символ конца пакета (в данном случае CR), 
-	устанавливаем флаг конца пакета. 
-	*/
-	if((USART_GetITStatus(USART1, USART_IT_RXNE))){
-		/* Считываем байт */
-		cChr= USART_ReceiveData(USART1);
-		/* Записываем в буфер */
-		CB_Push(&cbRxBuffer, cChr);
-		/* Если CR - выставляем соответствующий флаг */
-		if(cChr=='\r'){
-			bNewPacket = 1;	
-			GPIO_WriteBit(GPIOC, GPIO_Pin_9, Bit_SET);
-		}
-		USART_ClearITPendingBit(USART1, USART_IT_RXNE);		 
-	}	  
-	 	 
-}
 
 void InitGPIO(void);   
 void DEV_SystemRCCInit(void);
@@ -44,27 +8,19 @@ int main(void){
 
 	/* Инициальзация системного таймера */
 	DEV_SystemRCCInit();
-	InitGPIO();
-	
-	GPIO_SetBits(GPIOC, GPIO_Pin_8);
+	InitGPIO();	
 
-	/* Инициализация приёмного буфера */
-	CB_Wipe(&cbRxBuffer);
-
-	/* Инициализация последовательного порта (RS485) */
-	PERIRH_DefaultUSART1Config();
-	
-	PERIPH_Printf("Initialization completed.\n");		
-
-	while(1){
-		if(bNewPacket){	  			 
-			bNewPacket = 0;	 /* Сброс флага */
-		}	   
-		PERIPH_Printf("x\n");	
-		TIME_Delay_ms(1000);
+	while(1){ 
+		GPIO_SetBits(GPIOC, GPIO_Pin_9);
+		GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+		TIME_Delay_ms(500);
+		GPIO_SetBits(GPIOC, GPIO_Pin_8);
+		GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+		TIME_Delay_ms(500);
 	}
-
 }
+
+
 void InitGPIO(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
