@@ -26,7 +26,7 @@ void USART1_IRQHandler(void)
 			//ExecuteCmd();
 		}
 		USART_ClearITPendingBit(USART1, USART_IT_RXNE);		 
-	}	 */ 
+	}	 */
 
 	//Transmission complete
 	if((USART_GetITStatus(USART1, USART_IT_TC))){ 
